@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TURNS } from '../constants'
 import { BoardState, Turns, Winner } from '../types'
 import { Square } from '../components/Square'
 import { WinnerModal } from '../components/WinnerModal'
-import { checkForWinner } from '../utils/gameLogic'
+import { checkForWinner, saveToLocalStorage, checkForSavedGame } from '../utils/gameLogic'
 
 export function Board () {
   const [board, setBoard] = useState<BoardState>(Array(9).fill(null))
@@ -14,15 +14,19 @@ export function Board () {
     // early return
     if (board[index] !== null || winner) return
     const newBoard = [...board]
+    let newTurn = turn
 
     // change turn and update the board
     if (turn === TURNS.X) {
-      setTurn(TURNS.O)
       newBoard[index] = TURNS.O
+      newTurn = TURNS.O
     } else {
-      setTurn(TURNS.X)
       newBoard[index] = TURNS.X
+      newTurn = TURNS.X
     }
+
+    // set the new state of both
+    setTurn(newTurn)
     setBoard(newBoard)
 
     // check if theres a winner or draw
@@ -30,12 +34,24 @@ export function Board () {
     if (newWinner) {
       setWinner(newWinner as Winner)
     }
+    // save to local Storage
+    saveToLocalStorage(newBoard, newTurn)
   }
+
+  useEffect(() => {
+    const [savedBoard, savedTurn] = checkForSavedGame()
+    if (savedBoard) {
+      setBoard(savedBoard as BoardState)
+      setTurn(savedTurn as Turns)
+    }
+  }, [])
 
   const handleReset = () => {
     setBoard(Array(9).fill(null))
     setTurn(TURNS.X)
     setWinner(false)
+    localStorage.removeItem('board')
+    localStorage.removeItem('turn')
   }
 
   return (
@@ -51,10 +67,10 @@ export function Board () {
             />
           })}
       </section>
-      <section className='flex'>
+      <footer className='flex'>
         <Square key={'X'} children={TURNS.X} selected={turn === TURNS.X}/>
         <Square key={'O'} children={TURNS.O} selected={turn === TURNS.O}/>
-      </section>
+      </footer>
       {winner &&
         <WinnerModal
           winner={winner}

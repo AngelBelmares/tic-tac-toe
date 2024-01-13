@@ -1,4 +1,4 @@
-import { BoardState } from '../types'
+import { BoardState, Turns } from '../types'
 import { WINNER_COMBINATIONS } from '../constants'
 
 export function checkForWinner (board: BoardState) {
@@ -14,4 +14,16 @@ export function checkForWinner (board: BoardState) {
     return undefined
   })
   return combination ? board[combination[0]] : false
+}
+
+export function saveToLocalStorage (newBoard: BoardState, newTurn: Turns) {
+  localStorage.setItem('board', JSON.stringify(newBoard))
+  localStorage.setItem('turn', JSON.stringify(newTurn))
+}
+
+export function checkForSavedGame (): [BoardState, Turns] | null[] {
+  const savedBoard: BoardState = JSON.parse(localStorage.getItem('board') as string)
+  const savedTurn: Turns = JSON.parse(localStorage.getItem('turn') as string)
+
+  return [savedBoard, savedTurn]
 }
