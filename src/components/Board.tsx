@@ -3,7 +3,7 @@ import { TURNS } from '../constants'
 import { BoardState, Turns, Winner } from '../types'
 import { Square } from '../components/Square'
 import { WinnerModal } from '../components/WinnerModal'
-import { checkForWinner, saveToLocalStorage, checkForSavedGame } from '../utils/gameLogic'
+import { checkForWinner, saveToLocalStorage, checkForSavedGame, getUpdatedBoard, getNewTurn } from '../utils/gameLogic'
 
 export function Board () {
   const [board, setBoard] = useState<BoardState>(Array(9).fill(null))
@@ -13,17 +13,10 @@ export function Board () {
   const handleClick = (index: number) => {
     // early return
     if (board[index] !== null || winner) return
-    const newBoard = [...board]
-    let newTurn = turn
 
-    // change turn and update the board
-    if (turn === TURNS.X) {
-      newBoard[index] = TURNS.O
-      newTurn = TURNS.O
-    } else {
-      newBoard[index] = TURNS.X
-      newTurn = TURNS.X
-    }
+    // update the board and change turn
+    const newBoard = getUpdatedBoard(index, board, turn)
+    const newTurn = getNewTurn(turn)
 
     // set the new state of both
     setTurn(newTurn)
