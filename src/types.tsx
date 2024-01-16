@@ -14,3 +14,15 @@ export type SquareProps = {
   selected?: boolean
   handleClick?: (index: number) => void
 }
+
+export type Data = {
+  index: number,
+  board: BoardState,
+  turn: Turns
+}
+
+export type RecievedData = {
+  newBoard: BoardState
+  newTurn: Turns
+  newWinner: Winner
+}
