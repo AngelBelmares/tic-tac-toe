@@ -1,7 +1,7 @@
 export type Turns = 'X' | 'O';
 
 export type BoardState = Array<string | null>
-export type Winner = 'X' | 'O' | 'none' | false
+export type Winner = 'X' | 'O' | 'none' | false | null
 
 export type WinnerModalProps = {
   winner: Winner
@@ -21,7 +21,7 @@ export type Data = {
   turn: Turns
 }
 
-export type RecievedData = {
+export type BoardData = {
   newBoard: BoardState
   newTurn: Turns
   newWinner: Winner

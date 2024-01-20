@@ -1,4 +1,4 @@
-import { Turns } from './types'
+import { Turns } from './types.ts'
 
 export const WINNER_COMBINATIONS = [
   [0, 1, 2],
