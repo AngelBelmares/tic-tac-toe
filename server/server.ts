@@ -2,6 +2,8 @@ import http from 'http'
 import { Server } from 'socket.io'
 import express from 'express'
 import cors from 'cors'
+import { UUID, randomUUID } from 'crypto'
+import { Socket } from 'socket.io-client'
 
 const app = express()
 app.use(cors())
@@ -44,9 +46,9 @@ interface ServerToClientEvents {
 }
 
 interface ClientToServerEvents {
-  playOnline: () => void
+  playOnline: (playerID: string) => void
   playerDisconnected: () => void
-  sendMovement: (newData: BoardData) => void
+  sendMovement: (newData: BoardData, playerID: string) => void
 }
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
@@ -56,44 +58,112 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   }
 })
 
-const players: string[] = []
+type Lobby ={
+  lobbyID: UUID
+  playerX: string | undefined,
+  playerO: string | undefined,
+}
+
+const lobbies: Lobby[] = []
+const playerToSocket = new Map<string, string>()
 
 io.on('connection', (socket) => {
-  console.log(players)
-  console.log(`User connected: ${socket.id}`)
+  socket.on('playOnline', (playerID: string) => {
+    console.log(`${playerID} is playing online`)
 
-  socket.on('playOnline', () => {
-    console.log(`${socket.id} is playing online`)
-    players.push(socket.id)
-    console.log(`${players.length} are playing`)
+    playerToSocket.set(playerID, socket.id)
 
-    socket.join('room1')
-    if (players.length === 2) {
-      console.log(`${players[0]} is playing agains ${players[1]}`)
-      io.to(players[0]).emit('gameFound', 'X')
-      io.to(players[1]).emit('gameFound', 'O')
+    const lobbyID = checkForLobby(lobbies, playerID)
+
+    if (lobbyID) {
+      socket.join(lobbyID)
+    }
+    const currentLobby = lobbies.find(lobby => {
+      return lobby.playerO === playerID || lobby.playerX === playerID
+    })
+
+    if (currentLobby) {
+      const { playerX, playerO } = currentLobby
+      if (playerX && playerO) {
+        console.log('Creating Game')
+        // Look up the socket IDs using the player IDs
+        const socketIdX = playerToSocket.get(playerX)
+        const socketIdO = playerToSocket.get(playerO)
+        if (socketIdX) {
+          io.to(socketIdX).emit('gameFound', 'X')
+        }
+        if (socketIdO) {
+          io.to(socketIdO).emit('gameFound', 'O')
+        }
+      }
     }
   })
 
-  socket.on('sendMovement', (data): void => {
-    console.log('hi')
-    console.log('data received', data)
-    io.emit('recieveMovement', data)
-    console.log('Sending Data' + data)
+  socket.on('sendMovement', (data, playerID): void => {
+    console.log('Movement Sent')
+    console.log('Player ID:', playerID)
+    console.log('Lobbies:', lobbies)
+    const currentLobby = lobbies.find(lobby => {
+      return lobby.playerO === playerID || lobby.playerX === playerID
+    })
+    console.log(`Movement in ${currentLobby} lobby`)
+    if (currentLobby) {
+      io.in(currentLobby.lobbyID).emit('recieveMovement', data)
+    }
   })
 
   socket.on('playerDisconnected', () => {
     console.log(`${socket.id} is leaving the game`)
-    io.to(socket.id).emit('resetBoard')
-    socket.leave('room1')
+    socket.to(socket.id).emit('resetBoard')
 
-    const index = players.indexOf(socket.id)
-    if (index !== -1) {
-      players.splice(index, 1)
+    const currentLobby = lobbies.find(lobby => {
+      return lobby.playerO === socket.id || lobby.playerX === socket.id
+    })
+
+    if (currentLobby) {
+      if (currentLobby.playerX === socket.id) {
+        currentLobby.playerX = undefined
+      } else if (currentLobby.playerO === socket.id) {
+        currentLobby.playerO = undefined
+      }
     }
-    console.log(`${players} are playing`)
+
+    socket.leave(currentLobby?.lobbyID as string)
   })
 })
+
+function checkForLobby (lobbies: Lobby[], playerID: string): UUID {
+  console.log(lobbies)
+  const userAlreadyInLobby = lobbies.find(lobby => {
+    return lobby.playerO === playerID || lobby.playerX === playerID
+  })
+
+  if (userAlreadyInLobby) return userAlreadyInLobby.lobbyID
+
+  const availableLobby = lobbies.find((lobby) => {
+    console.log(`${lobby.playerX}  ${lobby.playerO}`)
+    return lobby.playerX === undefined || lobby.playerO === undefined
+  })
+
+  if (availableLobby) {
+    console.log('Found Available lobby')
+    if (!availableLobby.playerX) {
+      availableLobby.playerX = playerID
+    } else if (!availableLobby.playerO) {
+      availableLobby.playerO = playerID
+    }
+    return availableLobby.lobbyID
+  } else {
+    console.log('creating new lobby')
+    const newLobby: Lobby = {
+      lobbyID: randomUUID(),
+      playerX: playerID,
+      playerO: undefined
+    }
+    lobbies.push(newLobby)
+    return newLobby.lobbyID
+  }
+}
 
 server.listen(3001, () => {
   console.log('Server is running')

@@ -11,12 +11,12 @@ interface ServerToClientEvents {
 }
 
 interface ClientToServerEvents {
-  playOnline: () => void
+  playOnline: (playerID: string) => void
   playerDisconnected: () => void
-  sendMovement: (newData: BoardData) => void
+  sendMovement: (newData: BoardData, playerID: string) => void
 }
 
-export function useOnlineGame (socket : Socket<ServerToClientEvents, ClientToServerEvents>) {
+export function useOnlineGame (socket : Socket<ServerToClientEvents, ClientToServerEvents>, playerID: string) {
   const [board, setBoard] = useState<BoardState>(Array(9).fill(null))
   const [turn, setTurn] = useState<Turns>(TURNS.X)
   const [winner, setWinner] = useState<Winner>(false)
@@ -24,7 +24,7 @@ export function useOnlineGame (socket : Socket<ServerToClientEvents, ClientToSer
   const [assignedTurn, setAssignedTurn] = useState<string>('')
 
   useEffect(() => {
-    socket.emit('playOnline')
+    socket.emit('playOnline', playerID)
 
     return () => {
       socket.emit('playerDisconnected')
@@ -37,7 +37,6 @@ export function useOnlineGame (socket : Socket<ServerToClientEvents, ClientToSer
       setBoard(newBoard)
       setTurn(newTurn)
       setWinner(newWinner)
-      console.log(recievedData)
     })
     socket.on('resetBoard', () => {
       handleReset()
@@ -45,7 +44,6 @@ export function useOnlineGame (socket : Socket<ServerToClientEvents, ClientToSer
     socket.on('gameFound', (playerTurn) => {
       setAssignedTurn(playerTurn)
       setGameFound(true)
-      console.log(`Your Turn is ${playerTurn} is turn of ${turn}`)
     })
   }, [socket])
 
@@ -54,8 +52,7 @@ export function useOnlineGame (socket : Socket<ServerToClientEvents, ClientToSer
     if (board[index] !== null || winner || assignedTurn !== turn) return
 
     const newData = getUpdatedData({ board, turn, index })
-    socket.emit('sendMovement', newData)
-    console.log('data sent')
+    socket.emit('sendMovement', newData, playerID)
   }
 
   const handleReset = () => {

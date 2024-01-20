@@ -15,10 +15,10 @@ interface ClientToServerEvents {
   hello: () => void;
 }
 
-export function OnlineBoard () {
+export function OnlineBoard ({ playerID }) {
   const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io('http://localhost:3001')
 
-  const { board, turn, winner, gameFound, assignedTurn, handleClick, handleReset } = useOnlineGame(socket)
+  const { board, turn, winner, gameFound, assignedTurn, handleClick, handleReset } = useOnlineGame(socket, playerID)
 
   return (
     <>
