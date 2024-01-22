@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import http from 'http'
 import { Server } from 'socket.io'
 import express from 'express'
@@ -5,14 +6,16 @@ import cors from 'cors'
 import { ServerToClientEvents, ClientToServerEvents, Lobby } from './types'
 import { checkForLobby, findLobby } from './logic'
 
+dotenv.config()
 const app = express()
 app.use(cors())
 
 const server = http.createServer(app)
+const ORIGIN = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: ORIGIN,
     methods: ['GET', 'POST']
   }
 })
