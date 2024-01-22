@@ -8,6 +8,7 @@ import { checkForLobby, findLobby } from './logic.js'
 
 dotenv.config()
 const app = express()
+//accept all cors
 app.use(cors())
 
 const server = http.createServer(app)
@@ -15,7 +16,7 @@ const ORIGIN = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
-    origin: ORIGIN,
+    origin: '*',
     methods: ['GET', 'POST']
   }
 })

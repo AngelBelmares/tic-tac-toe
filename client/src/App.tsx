@@ -22,7 +22,7 @@ function App () {
           : <OnlineBoard
             playerID={playerID}/>}
       </main>
-      <aside>
+      <aside className='flex w-full mt-8 justify-center'>
         <button
           className='text-neutral-100 border-2 rounded-sm p-1 text-xl'
           onClick={() => handleClick()}>

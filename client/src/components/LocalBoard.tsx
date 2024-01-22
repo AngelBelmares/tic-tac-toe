@@ -9,6 +9,7 @@ export function LocalBoard () {
 
   return (
     <>
+       <h1 className='text-neutral-100'>{'ㅤ'}</h1>
       <section className='h-max w-max grid grid-cols-3 gap-2'>
         {board &&
           board.map((square, index) => {
