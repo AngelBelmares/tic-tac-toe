@@ -6,7 +6,8 @@ import { useOnlineGame } from '../hooks/useOnlineGame'
 import { io, Socket } from 'socket.io-client'
 
 export function OnlineBoard ({ playerID }: OnlineBoardProps) {
-  const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io('http://localhost:3001')
+  const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(SERVER_URL)
 
   const { gameStatus, playerInfo, actions } = useOnlineGame(socket, playerID)
   const { board, turn, winner, gameFound } = gameStatus
