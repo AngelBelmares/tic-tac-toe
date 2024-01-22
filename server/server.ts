@@ -3,7 +3,7 @@ import http from 'http'
 import { Server } from 'socket.io'
 import express from 'express'
 import cors from 'cors'
-import { ServerToClientEvents, ClientToServerEvents, Lobby } from './types'
+import { ServerToClientEvents, ClientToServerEvents, Lobby, BoardData } from './types'
 import { checkForLobby, findLobby } from './logic'
 
 dotenv.config()
@@ -48,7 +48,7 @@ io.on('connection', (socket) => {
     }
   })
 
-  socket.on('sendMovement', (data, playerID): void => {
+  socket.on('sendMovement', (newData: BoardData, playerID: string): void => {
     console.log('Movement Sent')
     console.log('Player ID:', playerID)
     console.log('Lobbies:', lobbies)
@@ -57,11 +57,11 @@ io.on('connection', (socket) => {
 
     console.log(`Movement in ${currentLobby} lobby`)
     if (currentLobby) {
-      io.in(currentLobby.lobbyID).emit('recieveMovement', data)
+      io.in(currentLobby.lobbyID).emit('recieveMovement', newData)
     }
   })
 
-  socket.on('playerDisconnected', (playerID) => {
+  socket.on('playerDisconnected', (playerID: string) => {
     console.log(`${playerID} is leaving the game`)
 
     const currentLobby = findLobby(playerID, lobbies)
