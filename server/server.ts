@@ -2,54 +2,13 @@ import http from 'http'
 import { Server } from 'socket.io'
 import express from 'express'
 import cors from 'cors'
-import { UUID, randomUUID } from 'crypto'
-import { Socket } from 'socket.io-client'
+import { ServerToClientEvents, ClientToServerEvents, Lobby } from './types'
+import { checkForLobby, findLobby } from './logic'
 
 const app = express()
 app.use(cors())
 
 const server = http.createServer(app)
-
-export type Turns = 'X' | 'O';
-
-export type BoardState = Array<string | null>
-export type Winner = 'X' | 'O' | 'none' | false | null
-
-export type WinnerModalProps = {
-  winner: Winner
-  handleReset: () => void
-}
-
-export type SquareProps = {
-  children: Turns | Winner
-  index?: number
-  selected?: boolean
-  handleClick?: (index: number) => void
-}
-
-export type Data = {
-  index: number,
-  board: BoardState,
-  turn: Turns
-}
-
-export type BoardData = {
-  newBoard: BoardState
-  newTurn: Turns
-  newWinner: Winner
-}
-
-interface ServerToClientEvents {
-  recieveMovement: (recievedData: BoardData) => void
-  resetBoard: () => void
-  gameFound: (playerTurn: Turns) => void
-}
-
-interface ClientToServerEvents {
-  playOnline: (playerID: string) => void
-  playerDisconnected: () => void
-  sendMovement: (newData: BoardData, playerID: string) => void
-}
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
@@ -58,12 +17,6 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   }
 })
 
-type Lobby ={
-  lobbyID: UUID
-  playerX: string | undefined,
-  playerO: string | undefined,
-}
-
 const lobbies: Lobby[] = []
 const playerToSocket = new Map<string, string>()
 
@@ -71,30 +24,23 @@ io.on('connection', (socket) => {
   socket.on('playOnline', (playerID: string) => {
     console.log(`${playerID} is playing online`)
 
-    playerToSocket.set(playerID, socket.id)
+    playerToSocket.set(playerID as string, socket.id)
 
-    const lobbyID = checkForLobby(lobbies, playerID)
+    const lobbyID = checkForLobby(lobbies, playerID as string)
 
     if (lobbyID) {
       socket.join(lobbyID)
     }
-    const currentLobby = lobbies.find(lobby => {
-      return lobby.playerO === playerID || lobby.playerX === playerID
-    })
 
-    if (currentLobby) {
-      const { playerX, playerO } = currentLobby
-      if (playerX && playerO) {
-        console.log('Creating Game')
-        // Look up the socket IDs using the player IDs
-        const socketIdX = playerToSocket.get(playerX)
-        const socketIdO = playerToSocket.get(playerO)
-        if (socketIdX) {
-          io.to(socketIdX).emit('gameFound', 'X')
-        }
-        if (socketIdO) {
-          io.to(socketIdO).emit('gameFound', 'O')
-        }
+    const currentLobby = findLobby(playerID, lobbies)
+
+    if (currentLobby && currentLobby.playerX && currentLobby.playerO) {
+      console.log('Creating Game')
+      if (playerToSocket.get(currentLobby.playerX)) {
+        io.to(playerToSocket.get(currentLobby.playerX)!).emit('gameFound', 'X')
+      }
+      if (playerToSocket.get(currentLobby.playerO)) {
+        io.to(playerToSocket.get(currentLobby.playerO)!).emit('gameFound', 'O')
       }
     }
   })
@@ -103,67 +49,37 @@ io.on('connection', (socket) => {
     console.log('Movement Sent')
     console.log('Player ID:', playerID)
     console.log('Lobbies:', lobbies)
-    const currentLobby = lobbies.find(lobby => {
-      return lobby.playerO === playerID || lobby.playerX === playerID
-    })
+
+    const currentLobby = findLobby(playerID, lobbies)
+
     console.log(`Movement in ${currentLobby} lobby`)
     if (currentLobby) {
       io.in(currentLobby.lobbyID).emit('recieveMovement', data)
     }
   })
 
-  socket.on('playerDisconnected', () => {
-    console.log(`${socket.id} is leaving the game`)
-    socket.to(socket.id).emit('resetBoard')
+  socket.on('playerDisconnected', (playerID) => {
+    console.log(`${playerID} is leaving the game`)
 
-    const currentLobby = lobbies.find(lobby => {
-      return lobby.playerO === socket.id || lobby.playerX === socket.id
-    })
+    const currentLobby = findLobby(playerID, lobbies)
 
-    if (currentLobby) {
-      if (currentLobby.playerX === socket.id) {
+    if (currentLobby && currentLobby.playerO && currentLobby.playerX) {
+      console.log(`${currentLobby.playerO} and ${currentLobby.playerX} are leaving the game`)
+      if (currentLobby.playerX === playerID) {
+        console.log('O wins by default')
+        io.to(playerToSocket.get(currentLobby.playerO)!).emit('winByDefault', 'O')
         currentLobby.playerX = undefined
-      } else if (currentLobby.playerO === socket.id) {
+      } else if (currentLobby.playerO === playerID) {
+        console.log('X wins by default')
+        io.to(playerToSocket.get(currentLobby.playerX)!).emit('winByDefault', 'X')
         currentLobby.playerO = undefined
       }
     }
-
+    
+    playerToSocket.delete(playerID as string)
     socket.leave(currentLobby?.lobbyID as string)
   })
 })
-
-function checkForLobby (lobbies: Lobby[], playerID: string): UUID {
-  console.log(lobbies)
-  const userAlreadyInLobby = lobbies.find(lobby => {
-    return lobby.playerO === playerID || lobby.playerX === playerID
-  })
-
-  if (userAlreadyInLobby) return userAlreadyInLobby.lobbyID
-
-  const availableLobby = lobbies.find((lobby) => {
-    console.log(`${lobby.playerX}  ${lobby.playerO}`)
-    return lobby.playerX === undefined || lobby.playerO === undefined
-  })
-
-  if (availableLobby) {
-    console.log('Found Available lobby')
-    if (!availableLobby.playerX) {
-      availableLobby.playerX = playerID
-    } else if (!availableLobby.playerO) {
-      availableLobby.playerO = playerID
-    }
-    return availableLobby.lobbyID
-  } else {
-    console.log('creating new lobby')
-    const newLobby: Lobby = {
-      lobbyID: randomUUID(),
-      playerX: playerID,
-      playerO: undefined
-    }
-    lobbies.push(newLobby)
-    return newLobby.lobbyID
-  }
-}
 
 server.listen(3001, () => {
   console.log('Server is running')
