@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import express from 'express'
 import cors from 'cors'
 import { ServerToClientEvents, ClientToServerEvents, Lobby, BoardData } from './types'
-import { checkForLobby, findLobby } from './logic'
+import { checkForLobby, findLobby } from './logic.js'
 
 dotenv.config()
 const app = express()
