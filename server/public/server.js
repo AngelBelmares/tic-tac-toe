@@ -3,7 +3,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import express from 'express';
 import cors from 'cors';
-import { checkForLobby, findLobby } from './logic';
+import { checkForLobby, findLobby } from './logic.js';
 dotenv.config();
 const app = express();
 app.use(cors());
